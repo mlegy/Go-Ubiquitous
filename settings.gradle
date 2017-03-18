@@ -1,1 +1,1 @@
-include ':app', ':goubiquitous'
+include ':app', ':watch'

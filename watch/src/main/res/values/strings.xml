@@ -1,5 +1,7 @@
 <resources>
     <string name="app_name">Go Ubiquitous</string>
-    <string name="message">Watch face tapped</string>
     <string name="my_digital_name">My Digital</string>
+    <string name="digital_am">AM</string>
+    <string name="digital_pm">PM</string>
+
 </resources>

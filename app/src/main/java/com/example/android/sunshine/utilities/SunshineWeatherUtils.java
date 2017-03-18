@@ -16,10 +16,12 @@
 package com.example.android.sunshine.utilities;
 
 import android.content.Context;
+import android.content.Intent;
 import android.util.Log;
 
 import com.example.android.sunshine.R;
 import com.example.android.sunshine.data.SunshinePreferences;
+import com.example.android.sunshine.sync.WatchService;
 
 /**
  * Contains useful utilities for a weather app, such as conversion between Celsius and Fahrenheit,
@@ -415,5 +417,11 @@ public final class SunshineWeatherUtils {
 
         Log.e(LOG_TAG, "Unknown Weather: " + weatherId);
         return R.drawable.art_storm;
+    }
+
+    public static void updateWatchFace(Context c) {
+        Intent intent = new Intent(c, WatchService.class);
+        intent.setAction(WatchService.ACTION_UPDATE_WATCHFACE);
+        c.startService(intent);
     }
 }
