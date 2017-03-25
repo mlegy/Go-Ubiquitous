@@ -14,10 +14,13 @@ import com.example.android.sunshine.data.WeatherContract;
 import com.example.android.sunshine.utilities.SunshineWeatherUtils;
 import com.google.android.gms.common.ConnectionResult;
 import com.google.android.gms.common.api.GoogleApiClient;
-import com.google.android.gms.common.api.PendingResult;
+import com.google.android.gms.common.api.ResultCallback;
 import com.google.android.gms.wearable.DataApi;
 import com.google.android.gms.wearable.PutDataMapRequest;
+import com.google.android.gms.wearable.PutDataRequest;
 import com.google.android.gms.wearable.Wearable;
+
+import java.util.concurrent.TimeUnit;
 
 /**
  * Created by ahmad on 3/18/17.
@@ -29,10 +32,11 @@ public class WatchService extends IntentService
     private static final String SERVICE_NAME = "WatchService";
     public static final String ACTION_UPDATE_WATCHFACE = "ACTION_UPDATE_WATCHFACE";
 
-    private static final String KEY_PATH = "/weather";
-    private static final String KEY_WEATHER_ID = "KEY_WEATHER_ID";
-    private static final String KEY_MAX_TEMP = "KEY_MAX_TEMP";
-    private static final String KEY_MIN_TEMP = "KEY_MIN_TEMP";
+    private static final String WEATHER_DATA_PATH = "/WEATHER_DATA_PATH";
+    private static final String WEATHER_DATA_ID = "WEATHER_DATA_ID";
+    private static final String WEATHER_DATA_HIGH = "WEATHER_DATA_HIGH";
+    private static final String WEATHER_DATA_LOW = "WEATHER_DATA_LOW";
+    private static final String LOG_TAG = "WatchService";
 
     private GoogleApiClient mGoogleApiClient;
 
@@ -56,13 +60,19 @@ public class WatchService extends IntentService
                     .build();
 
             mGoogleApiClient.connect();
+            ConnectionResult connectionResult = mGoogleApiClient.blockingConnect(30,
+                    TimeUnit.SECONDS);
+            if (!connectionResult.isSuccess()) {
+                return;
+            }
+            Log.i(LOG_TAG, "GoogleApiClient" + mGoogleApiClient.isConnected());
         }
 
     }
 
     @Override
     public void onConnected(@Nullable Bundle bundle) {
-        Log.d("WatchService", "Updating the WatchFace");
+        Log.i("WatchService", "Updating the WatchFace");
 
         Uri weatherUri = WeatherContract.WeatherEntry
                 .buildWeatherUriWithDate(System.currentTimeMillis());
@@ -85,28 +95,43 @@ public class WatchService extends IntentService
             String minTemp = SunshineWeatherUtils.formatTemperature(this, c.getDouble(
                     c.getColumnIndex(WeatherContract.WeatherEntry.COLUMN_MIN_TEMP)));
 
-            final PutDataMapRequest mapRequest = PutDataMapRequest.create(KEY_PATH);
-            mapRequest.getDataMap().putInt(KEY_WEATHER_ID, weatherId);
-            mapRequest.getDataMap().putString(KEY_MAX_TEMP, maxTemp);
-            mapRequest.getDataMap().putString(KEY_MIN_TEMP, minTemp);
+            Log.i(LOG_TAG, "Sending weather information to android wear");
 
-            PendingResult<DataApi.DataItemResult> pendingResult = Wearable.DataApi
-                    .putDataItem(mGoogleApiClient, mapRequest.asPutDataRequest());
+            PutDataMapRequest dataMap = PutDataMapRequest.create(WEATHER_DATA_PATH);
+            dataMap.getDataMap().putString(WEATHER_DATA_HIGH, maxTemp);
+            dataMap.getDataMap().putString(WEATHER_DATA_LOW, minTemp);
+            dataMap.getDataMap().putLong(WEATHER_DATA_ID, weatherId);
+            PutDataRequest request = dataMap.asPutDataRequest();
+
+            Log.i(LOG_TAG, "GoogleApiClient " + mGoogleApiClient.isConnected());
+
+            Wearable.DataApi.putDataItem(mGoogleApiClient, request)
+                    .setResultCallback(new ResultCallback<DataApi.DataItemResult>() {
+                        @Override
+                        public void onResult(DataApi.DataItemResult result) {
+                            if (!result.getStatus().isSuccess()) {
+                                Log.i(LOG_TAG, "Cannot send weather information, status code: "
+                                        + result.getStatus().getStatusCode());
+                            } else {
+                                Log.i(LOG_TAG, "Weather information was sent successfully "
+                                        + result.getDataItem().getUri());
+                            }
+                        }
+                    });
         }
         if (c != null) {
             c.close();
         }
-
     }
 
     @Override
     public void onConnectionSuspended(int i) {
-
+        Log.i("onConnectionSuspended", "onConnectionSuspended");
     }
 
     @Override
     public void onConnectionFailed(@NonNull ConnectionResult connectionResult) {
-
+        Log.i("onConnectionFailed", connectionResult.toString());
     }
 
     @Override
